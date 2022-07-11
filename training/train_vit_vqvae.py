@@ -50,7 +50,6 @@ class TrainingArguments:
     do_eval: bool = field(
         default=False, metadata={"help": "Whether to run eval on the dev set."}
     )
-    commitment_cost: float = field(default=0.25, metadata={"help": "Commitment cost"})
     learning_rate: float = field(
         default=5e-5, metadata={"help": "The initial learning rate for AdamW."}
     )
@@ -222,20 +221,19 @@ def create_learning_rate_fn(
     return warmup_fn
 
 
-def get_config(model_args, data_args, training_args):
-    if model_args.config_name is None:
+def get_config(model_args, data_args):
+    if model_args.config_name:
+        return ViTVQConfig.from_pretrained(
+            model_args.config_name,
+            image_size=data_args.image_size,
+            cache_dir=model_args.cache_dir,
+            use_auth_token=True if model_args.use_auth_token else None,
+        )
+    else:
         return ViTVQConfig(
             image_size=data_args.image_size,
-            commitment_cost=training_args.commitment_cost,
             cache_dir=model_args.cache_dir,
         )
-    return ViTVQConfig.from_pretrained(
-        model_args.config_name,
-        image_size=data_args.image_size,
-        commitment_cost=training_args.commitment_cost,
-        cache_dir=model_args.cache_dir,
-        use_auth_token=True if model_args.use_auth_token else None,
-    )
 
 
 def flat_args(model_args, data_args, training_args):
@@ -313,7 +311,7 @@ def main():
     dataset = Dataset(**asdict(data_args))
 
     # Load or create model
-    config = get_config(model_args, data_args, training_args)
+    config = get_config(model_args, data_args)
     model = ViTVQModel(
         config,
         seed=training_args.seed,
